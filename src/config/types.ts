@@ -43,6 +43,8 @@ export interface LettaBotConfig {
       enabled: boolean;
       intervalMin?: number;
     };
+    inlineImages?: boolean;   // Send images directly to the LLM (default: true). Set false to only send file paths.
+    maxToolCalls?: number;
   };
 
   // Integrations (Google Workspace, etc.)
