@@ -11,7 +11,11 @@ import type { BotConfig, InboundMessage, TriggerContext } from './types.js';
 import { Store } from './store.js';
 import { updateAgentName, getPendingApprovals, rejectApproval, cancelRuns, disableAllToolApprovals, recoverOrphanedConversationApproval } from '../tools/letta-api.js';
 import { installSkillsToAgent } from '../skills/loader.js';
-import { formatMessageEnvelope, type SessionContextOptions } from './formatter.js';
+import { formatMessageEnvelope, formatGroupBatchEnvelope, type SessionContextOptions } from './formatter.js';
+import type { GroupBatcher } from './group-batcher.js';
+import { isGroupApproved, approveGroup } from '../pairing/group-store.js';
+import { isUserAllowed } from '../pairing/store.js';
+import { formatMessageEnvelope,  } from './formatter.js';
 import { loadMemoryBlocks } from './memory.js';
 import { SYSTEM_PROMPT } from './system-prompt.js';
 import { StreamWatchdog } from './stream-watchdog.js';
@@ -41,6 +45,8 @@ export class LettaBot {
   
   // Callback to trigger heartbeat (set by main.ts)
   public onTriggerHeartbeat?: () => Promise<void>;
+  private groupBatcher?: GroupBatcher;
+  private groupIntervals: Map<string, number> = new Map(); // channel -> intervalMin
   private processing = false;
   
   constructor(config: BotConfig) {
@@ -65,6 +71,27 @@ export class LettaBot {
     console.log(`Registered channel: ${adapter.name}`);
   }
   
+  /**
+   * Set the group batcher and per-channel intervals.
+   */
+  setGroupBatcher(batcher: GroupBatcher, intervals: Map<string, number>): void {
+    this.groupBatcher = batcher;
+    this.groupIntervals = intervals;
+    console.log('[Bot] Group batcher configured');
+  }
+
+  /**
+   * Inject a batched group message into the queue and trigger processing.
+   * Called by GroupBatcher's onFlush callback.
+   */
+  processGroupBatch(msg: InboundMessage, adapter: ChannelAdapter): void {
+    console.log(`[Bot] Group batch: ${msg.batchedMessages?.length || 0} messages from ${msg.channel}:${msg.chatId}`);
+    this.messageQueue.push({ msg, adapter });
+    if (!this.processing) {
+      this.processQueue().catch(err => console.error('[Queue] Fatal error in processQueue:', err));
+    }
+  }
+
   /**
    * Handle slash commands
    */
@@ -209,7 +236,31 @@ export class LettaBot {
    */
   private async handleMessage(msg: InboundMessage, adapter: ChannelAdapter): Promise<void> {
     console.log(`[${msg.channel}] Message from ${msg.userId}: ${msg.text}`);
-    
+
+    // Route group messages to batcher if configured
+    if (msg.isGroup && this.groupBatcher) {
+      // Check group approval when dmPolicy is 'pairing'
+      const dmPolicy = adapter.getDmPolicy?.() || 'open';
+      if (dmPolicy === 'pairing') {
+        const approved = await isGroupApproved(msg.channel, msg.chatId);
+        if (!approved) {
+          const allowed = await isUserAllowed(msg.channel, msg.userId);
+          if (allowed) {
+            await approveGroup(msg.channel, msg.chatId);
+            console.log(`[Bot] Group ${msg.channel}:${msg.chatId} approved by paired user ${msg.userId}`);
+          } else {
+            console.log(`[Bot] Ignoring group message from unpaired user in unapproved group`);
+            return;
+          }
+        }
+      }
+
+      const intervalMin = this.groupIntervals.get(msg.channel) ?? 10;
+      console.log(`[Bot] Group message routed to batcher (interval=${intervalMin}min, mentioned=${msg.wasMentioned})`);
+      this.groupBatcher.enqueue(msg, adapter, intervalMin);
+      return;
+    }
+
     // Add to queue
     this.messageQueue.push({ msg, adapter });
     console.log(`[Queue] Added to queue, length: ${this.messageQueue.length}, processing: ${this.processing}`);
@@ -385,7 +436,9 @@ export class LettaBot {
       } : undefined;
 
       // Send message to agent with metadata envelope
-      const formattedMessage = formatMessageEnvelope(msg, {}, sessionContext);
+      const formattedMessage = msg.isBatch && msg.batchedMessages
+        ? formatGroupBatchEnvelope(msg.batchedMessages)
+        : formatMessageEnvelope(msg);
       try {
         await withTimeout(session.send(formattedMessage), 'Session send');
       } catch (sendError) {
