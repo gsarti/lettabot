@@ -11,10 +11,11 @@ import type { BotConfig, InboundMessage, TriggerContext } from './types.js';
 import { Store } from './store.js';
 import { updateAgentName, getPendingApprovals, rejectApproval, cancelRuns, disableAllToolApprovals } from '../tools/letta-api.js';
 import { installSkillsToAgent } from '../skills/loader.js';
-import { formatMessageEnvelope, formatGroupBatchEnvelope } from './formatter.js';
+import { formatMessageEnvelope, formatGroupBatchEnvelope, type SessionContextOptions } from './formatter.js';
 import type { GroupBatcher } from './group-batcher.js';
 import { isGroupApproved, approveGroup } from '../pairing/group-store.js';
 import { isUserAllowed } from '../pairing/store.js';
+import { formatMessageEnvelope,  } from './formatter.js';
 import { loadMemoryBlocks } from './memory.js';
 import { SYSTEM_PROMPT } from './system-prompt.js';
 import { StreamWatchdog } from './stream-watchdog.js';
@@ -401,6 +402,15 @@ export class LettaBot {
         this.store.conversationId = initInfo.conversationId;
         console.log('[Bot] Saved conversation ID:', initInfo.conversationId);
       }
+
+      // Determine if this is the first message in a new chat session
+      // (different chatId from last message target = new session context)
+      const prevTarget = this.store.lastMessageTarget;
+      const isNewChatSession = !prevTarget || prevTarget.chatId !== msg.chatId || prevTarget.channel !== msg.channel;
+      const sessionContext: SessionContextOptions | undefined = isNewChatSession ? {
+        agentId: this.store.agentId || undefined,
+        serverUrl: process.env.LETTA_BASE_URL || this.store.baseUrl || 'https://api.letta.com',
+      } : undefined;
 
       // Send message to agent with metadata envelope
       const formattedMessage = msg.isBatch && msg.batchedMessages
