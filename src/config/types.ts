@@ -79,6 +79,7 @@ export interface TelegramConfig {
   dmPolicy?: 'pairing' | 'allowlist' | 'open';
   allowedUsers?: string[];
   groupPollIntervalMin?: number;  // Batch interval in minutes (default: 10, 0 = immediate)
+  instantGroups?: string[];       // Group chat IDs that bypass batching
 }
 
 export interface SlackConfig {
@@ -87,6 +88,7 @@ export interface SlackConfig {
   botToken?: string;
   allowedUsers?: string[];
   groupPollIntervalMin?: number;  // Batch interval in minutes (default: 10, 0 = immediate)
+  instantGroups?: string[];       // Channel IDs that bypass batching
 }
 
 export interface WhatsAppConfig {
@@ -99,6 +101,7 @@ export interface WhatsAppConfig {
   mentionPatterns?: string[];
   groups?: Record<string, { requireMention?: boolean }>;
   groupPollIntervalMin?: number;  // Batch interval in minutes (default: 10, 0 = immediate)
+  instantGroups?: string[];       // Group JIDs that bypass batching
 }
 
 export interface SignalConfig {
@@ -111,6 +114,7 @@ export interface SignalConfig {
   mentionPatterns?: string[];  // Regex patterns for mention detection (e.g., ["@bot"])
   groups?: Record<string, { requireMention?: boolean }>;  // Per-group settings, "*" for defaults
   groupPollIntervalMin?: number;  // Batch interval in minutes (default: 10, 0 = immediate)
+  instantGroups?: string[];       // Group IDs that bypass batching
 }
 
 export interface DiscordConfig {
@@ -119,6 +123,7 @@ export interface DiscordConfig {
   dmPolicy?: 'pairing' | 'allowlist' | 'open';
   allowedUsers?: string[];
   groupPollIntervalMin?: number;  // Batch interval in minutes (default: 10, 0 = immediate)
+  instantGroups?: string[];       // Guild/server IDs or channel IDs that bypass batching
 }
 
 export interface GoogleConfig {

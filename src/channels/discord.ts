@@ -253,6 +253,7 @@ Ask the bot owner to approve with:
           timestamp: message.createdAt,
           isGroup,
           groupName,
+          serverId: message.guildId || undefined,
           wasMentioned,
           attachments,
         });
@@ -384,6 +385,7 @@ Ask the bot owner to approve with:
       timestamp: new Date(),
       isGroup,
       groupName,
+      serverId: message.guildId || undefined,
       reaction: {
         emoji,
         messageId: message.id,

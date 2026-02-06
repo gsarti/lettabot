@@ -62,6 +62,7 @@ function formatShortTime(date: Date, options: EnvelopeOptions): string {
     timeZone,
   });
   return formatter.format(date);
+}
 
 /**
  * Session context options for first-message enrichment

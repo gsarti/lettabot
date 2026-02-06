@@ -15,7 +15,6 @@ import { formatMessageEnvelope, formatGroupBatchEnvelope, type SessionContextOpt
 import type { GroupBatcher } from './group-batcher.js';
 import { isGroupApproved, approveGroup } from '../pairing/group-store.js';
 import { isUserAllowed } from '../pairing/store.js';
-import { formatMessageEnvelope,  } from './formatter.js';
 import { loadMemoryBlocks } from './memory.js';
 import { SYSTEM_PROMPT } from './system-prompt.js';
 import { StreamWatchdog } from './stream-watchdog.js';
@@ -31,6 +30,7 @@ export class LettaBot {
   public onTriggerHeartbeat?: () => Promise<void>;
   private groupBatcher?: GroupBatcher;
   private groupIntervals: Map<string, number> = new Map(); // channel -> intervalMin
+  private instantGroupIds: Set<string> = new Set(); // channel:id keys for instant processing
   private processing = false;
   
   constructor(config: BotConfig) {
@@ -58,9 +58,12 @@ export class LettaBot {
   /**
    * Set the group batcher and per-channel intervals.
    */
-  setGroupBatcher(batcher: GroupBatcher, intervals: Map<string, number>): void {
+  setGroupBatcher(batcher: GroupBatcher, intervals: Map<string, number>, instantGroupIds?: Set<string>): void {
     this.groupBatcher = batcher;
     this.groupIntervals = intervals;
+    if (instantGroupIds) {
+      this.instantGroupIds = instantGroupIds;
+    }
     console.log('[Bot] Group batcher configured');
   }
 
@@ -69,8 +72,15 @@ export class LettaBot {
    * Called by GroupBatcher's onFlush callback.
    */
   processGroupBatch(msg: InboundMessage, adapter: ChannelAdapter): void {
-    console.log(`[Bot] Group batch: ${msg.batchedMessages?.length || 0} messages from ${msg.channel}:${msg.chatId}`);
-    this.messageQueue.push({ msg, adapter });
+    const count = msg.batchedMessages?.length || 0;
+    console.log(`[Bot] Group batch: ${count} messages from ${msg.channel}:${msg.chatId}`);
+
+    // Unwrap single-message batches so they use formatMessageEnvelope (DM-style)
+    // instead of the chat-log batch format
+    const effective = (count === 1 && msg.batchedMessages)
+      ? msg.batchedMessages[0]
+      : msg;
+    this.messageQueue.push({ msg: effective, adapter });
     if (!this.processing) {
       this.processQueue().catch(err => console.error('[Queue] Fatal error in processQueue:', err));
     }
@@ -232,8 +242,11 @@ export class LettaBot {
         }
       }
 
-      const intervalMin = this.groupIntervals.get(msg.channel) ?? 10;
-      console.log(`[Bot] Group message routed to batcher (interval=${intervalMin}min, mentioned=${msg.wasMentioned})`);
+      // Check if this group is configured for instant processing
+      const isInstant = this.instantGroupIds.has(`${msg.channel}:${msg.chatId}`)
+        || (msg.serverId && this.instantGroupIds.has(`${msg.channel}:${msg.serverId}`));
+      const intervalMin = isInstant ? 0 : (this.groupIntervals.get(msg.channel) ?? 10);
+      console.log(`[Bot] Group message routed to batcher (interval=${intervalMin}min, mentioned=${msg.wasMentioned}, instant=${!!isInstant})`);
       this.groupBatcher.enqueue(msg, adapter, intervalMin);
       return;
     }
