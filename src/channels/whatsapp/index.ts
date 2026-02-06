@@ -954,6 +954,10 @@ export class WhatsAppAdapter implements ChannelAdapter {
     );
   }
 
+  getDmPolicy(): string {
+    return this.config.dmPolicy || 'pairing';
+  }
+
   supportsEditing(): boolean {
     return false;
   }
