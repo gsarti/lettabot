@@ -203,10 +203,13 @@ export function configToEnv(config: LettaBotConfig): Record<string, string> {
   if (config.features?.heartbeat?.enabled) {
     env.HEARTBEAT_INTERVAL_MIN = String(config.features.heartbeat.intervalMin || 30);
   }
+  if (config.features?.inlineImages === false) {
+    env.INLINE_IMAGES = 'false';
+  }
   if (config.features?.maxToolCalls !== undefined) {
     env.MAX_TOOL_CALLS = String(config.features.maxToolCalls);
   }
-  
+
   // Integrations - Google (Gmail polling)
   if (config.integrations?.google?.enabled && config.integrations.google.account) {
     env.GMAIL_ACCOUNT = config.integrations.google.account;
