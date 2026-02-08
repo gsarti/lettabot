@@ -14,6 +14,7 @@
     "setup": "tsx src/setup.ts",
     "dev": "tsx src/main.ts",
     "build": "tsc",
+    "postinstall": "npx patch-package",
     "start": "node dist/main.js",
     "test": "vitest",
     "test:run": "vitest run",
@@ -42,7 +43,7 @@
   "dependencies": {
     "@clack/prompts": "^0.11.0",
     "@hapi/boom": "^10.0.1",
-    "@letta-ai/letta-client": "^1.7.7",
+    "@letta-ai/letta-client": "^1.7.8",
     "@letta-ai/letta-code-sdk": "^0.0.5",
     "@types/express": "^5.0.6",
     "@types/node": "^25.0.10",
@@ -65,11 +66,14 @@
   },
   "optionalDependencies": {
     "@slack/bolt": "^4.6.0",
-    "@whiskeysockets/baileys": "^6.7.21",
+    "@whiskeysockets/baileys": "6.7.21",
     "discord.js": "^14.25.1"
   },
   "devDependencies": {
     "@types/update-notifier": "^6.0.8",
     "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "keyv": "$keyv"
   }
 }

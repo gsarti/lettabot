@@ -210,11 +210,19 @@ export function configToEnv(config: LettaBotConfig): Record<string, string> {
     env.MAX_TOOL_CALLS = String(config.features.maxToolCalls);
   }
 
-  // Integrations - Google (Gmail polling)
-  if (config.integrations?.google?.enabled && config.integrations.google.account) {
+  // Polling - top-level polling config (preferred)
+  if (config.polling?.gmail?.enabled && config.polling.gmail.account) {
+    env.GMAIL_ACCOUNT = config.polling.gmail.account;
+  }
+  if (config.polling?.intervalMs) {
+    env.POLLING_INTERVAL_MS = String(config.polling.intervalMs);
+  }
+
+  // Integrations - Google (legacy path for Gmail polling, lower priority)
+  if (!env.GMAIL_ACCOUNT && config.integrations?.google?.enabled && config.integrations.google.account) {
     env.GMAIL_ACCOUNT = config.integrations.google.account;
   }
-  if (config.integrations?.google?.pollIntervalSec) {
+  if (!env.POLLING_INTERVAL_MS && config.integrations?.google?.pollIntervalSec) {
     env.POLLING_INTERVAL_MS = String(config.integrations.google.pollIntervalSec * 1000);
   }
 
@@ -223,6 +231,17 @@ export function configToEnv(config: LettaBotConfig): Record<string, string> {
   }
   if (config.attachments?.maxAgeDays !== undefined) {
     env.ATTACHMENTS_MAX_AGE_DAYS = String(config.attachments.maxAgeDays);
+  }
+
+  // API server
+  if (config.api?.port !== undefined) {
+    env.PORT = String(config.api.port);
+  }
+  if (config.api?.host) {
+    env.API_HOST = config.api.host;
+  }
+  if (config.api?.corsOrigin) {
+    env.API_CORS_ORIGIN = config.api.corsOrigin;
   }
   
   return env;

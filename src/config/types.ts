@@ -47,7 +47,12 @@ export interface LettaBotConfig {
     maxToolCalls?: number;  // Abort if agent calls this many tools in one turn (default: 100)
   };
 
+  // Polling - system-level background checks (Gmail, etc.)
+  polling?: PollingYamlConfig;
+
   // Integrations (Google Workspace, etc.)
+  // NOTE: integrations.google is a legacy path for polling config.
+  // Prefer the top-level `polling` section instead.
   integrations?: {
     google?: GoogleConfig;
   };
@@ -60,12 +65,28 @@ export interface LettaBotConfig {
     maxMB?: number;
     maxAgeDays?: number;
   };
+
+  // API server (health checks, CLI messaging)
+  api?: {
+    port?: number;       // Default: 8080 (or PORT env var)
+    host?: string;       // Default: 127.0.0.1 (secure). Use '0.0.0.0' for Docker/Railway
+    corsOrigin?: string; // CORS origin. Default: same-origin only
+  };
 }
 
 export interface TranscriptionConfig {
   provider: 'openai';  // Only OpenAI supported currently
   apiKey?: string;     // Falls back to OPENAI_API_KEY env var
   model?: string;      // Defaults to 'whisper-1'
+}
+
+export interface PollingYamlConfig {
+  enabled?: boolean;      // Master switch (default: auto-detected from sub-configs)
+  intervalMs?: number;    // Polling interval in milliseconds (default: 60000)
+  gmail?: {
+    enabled?: boolean;    // Enable Gmail polling
+    account?: string;     // Gmail account to poll (e.g., user@example.com)
+  };
 }
 
 export interface ProviderConfig {
