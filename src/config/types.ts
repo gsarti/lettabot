@@ -103,6 +103,7 @@ export interface TelegramConfig {
   allowedUsers?: string[];
   groupPollIntervalMin?: number;  // Batch interval in minutes (default: 10, 0 = immediate)
   instantGroups?: string[];       // Group chat IDs that bypass batching
+  listeningGroups?: string[];     // Group IDs where bot only observes (replies only when mentioned)
 }
 
 export interface SlackConfig {
@@ -113,6 +114,7 @@ export interface SlackConfig {
   allowedUsers?: string[];
   groupPollIntervalMin?: number;  // Batch interval in minutes (default: 10, 0 = immediate)
   instantGroups?: string[];       // Channel IDs that bypass batching
+  listeningGroups?: string[];     // Group IDs where bot only observes (replies only when mentioned)
 }
 
 export interface WhatsAppConfig {
@@ -126,6 +128,7 @@ export interface WhatsAppConfig {
   groups?: Record<string, { requireMention?: boolean }>;
   groupPollIntervalMin?: number;  // Batch interval in minutes (default: 10, 0 = immediate)
   instantGroups?: string[];       // Group JIDs that bypass batching
+  listeningGroups?: string[];     // Group IDs where bot only observes (replies only when mentioned)
 }
 
 export interface SignalConfig {
@@ -139,6 +142,7 @@ export interface SignalConfig {
   groups?: Record<string, { requireMention?: boolean }>;  // Per-group settings, "*" for defaults
   groupPollIntervalMin?: number;  // Batch interval in minutes (default: 10, 0 = immediate)
   instantGroups?: string[];       // Group IDs that bypass batching
+  listeningGroups?: string[];     // Group IDs where bot only observes (replies only when mentioned)
 }
 
 export interface DiscordConfig {
@@ -148,6 +152,7 @@ export interface DiscordConfig {
   allowedUsers?: string[];
   groupPollIntervalMin?: number;  // Batch interval in minutes (default: 10, 0 = immediate)
   instantGroups?: string[];       // Guild/server IDs or channel IDs that bypass batching
+  listeningGroups?: string[];     // Group IDs where bot only observes (replies only when mentioned)
 }
 
 export interface GoogleConfig {
