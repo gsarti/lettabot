@@ -8,6 +8,7 @@ import { createAgent, createSession, resumeSession, imageFromFile, imageFromURL,
 import { mkdirSync } from 'node:fs';
 import type { ChannelAdapter } from '../channels/types.js';
 import type { BotConfig, InboundMessage, TriggerContext } from './types.js';
+import type { AgentSession } from './interfaces.js';
 import { Store } from './store.js';
 import { updateAgentName, getPendingApprovals, rejectApproval, cancelRuns, recoverOrphanedConversationApproval } from '../tools/letta-api.js';
 import { installSkillsToAgent } from '../skills/loader.js';
@@ -81,7 +82,7 @@ async function buildMultimodalMessage(
   return content.length > 1 ? content : formattedText;
 }
 
-export class LettaBot {
+export class LettaBot implements AgentSession {
   private store: Store;
   private config: BotConfig;
   private channels: Map<string, ChannelAdapter> = new Map();
@@ -103,7 +104,7 @@ export class LettaBot {
     mkdirSync(config.workingDir, { recursive: true });
     
     // Store in project root (same as main.ts reads for LETTA_AGENT_ID)
-    this.store = new Store('lettabot-agent.json');
+    this.store = new Store('lettabot-agent.json', config.agentName);
     
     console.log(`LettaBot initialized. Agent ID: ${this.store.agentId || '(new)'}`);
   }
@@ -525,7 +526,7 @@ export class LettaBot {
       // Send message to agent with metadata envelope
       const formattedText = msg.isBatch && msg.batchedMessages
         ? formatGroupBatchEnvelope(msg.batchedMessages, {}, msg.isListeningMode)
-        : formatMessageEnvelope(msg);
+        : formatMessageEnvelope(msg, {}, sessionContext);
       const messageToSend = await buildMultimodalMessage(formattedText, msg);
       try {
         await withTimeout(session.send(messageToSend), 'Session send');
@@ -580,7 +581,8 @@ export class LettaBot {
             const preview = response.length > 50 ? response.slice(0, 50) + '...' : response;
             console.log(`[Bot] Sent: "${preview}"`);
           } catch {
-            // Ignore send errors
+            // Edit failures (e.g. "message not modified") are OK if we already sent the message
+            if (messageId) sentAnyMessage = true;
           }
         }
         // Reset for next message bubble
@@ -666,9 +668,10 @@ export class LettaBot {
                 } else {
                   const result = await adapter.sendMessage({ chatId: msg.chatId, text: response, threadId: msg.threadId });
                   messageId = result.messageId;
+                  sentAnyMessage = true;
                 }
               } catch {
-                // Ignore edit errors
+                // Ignore edit errors (e.g. rate limits)
               }
               lastUpdate = Date.now();
             }
@@ -753,6 +756,7 @@ export class LettaBot {
       if (sentImages && response.includes('[Image omitted]')) {
         console.warn('[Bot] Model does not support images — server replaced inline images with "[Image omitted]". Consider using a vision-capable model or setting features.inlineImages: false in config.');
       }
+
 
       // Send final response
       if (response.trim()) {
